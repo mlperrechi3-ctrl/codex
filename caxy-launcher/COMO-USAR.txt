@@ -1,0 +1,18 @@
+Caxy Gamba no navegador — lancador experimental para Windows
+
+1. Extraia Caxy.rar com WinRAR ou 7-Zip.
+2. Instale Python 3.10 ou mais recente: https://www.python.org/downloads/windows/
+3. Coloque caxy_navegador.py e INICIAR-CAXY.bat na mesma pasta.
+4. Execute INICIAR-CAXY.bat e selecione a pasta que contem MONSTRO.EXE.
+5. Na primeira execucao, aguarde o download do runtime ScummVM (~70 MB).
+6. O navegador abre automaticamente. Mantenha a janela do lancador aberta.
+
+O lancador le os arquivos originais sem modifica-los e resolve o alias
+MONSTRO.DIR para MONSTRO.CXT. O jogo roda localmente no Chrome ou Edge.
+Nenhuma senha ou API key e necessaria.
+
+Validado no Chromium: introducao, menu e entrada na primeira cena do castelo.
+As outras fases ainda nao foram validadas. O audio nao foi ouvido no teste.
+Dependencias do runtime: https://github.com/chkuendig/scummvm-demo
+Codigo upstream: https://github.com/scummvm/scummvm
+Licencas do runtime ficam na pasta caxy-runtime-web.
