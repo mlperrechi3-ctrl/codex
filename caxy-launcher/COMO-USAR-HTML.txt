@@ -1,0 +1,30 @@
+Caxy Gamba — lancador HTML para Windows
+
+1. Extraia Caxy-HTML.zip.
+2. Extraia seu Caxy.rar com WinRAR ou 7-Zip.
+3. Abra caxy.html no Chrome ou Edge com dois cliques.
+4. Clique em selecionar pasta e escolha a pasta do jogo com MONSTRO.EXE.
+5. Clique em Abrir jogo e aguarde o carregamento do player.
+
+Nao precisa de Python, instalador ou servidor local.
+Precisa de internet para carregar o ScummVM WebAssembly do GitHub.
+O jogo e lido da pasta local que voce selecionou; seus arquivos nao sao enviados.
+O lancador resolve o nome MONSTRO.DIR para o conteudo de MONSTRO.CXT sem
+alterar os originais. MONSTRO.EXE (32 bits) e usado pelo motor Director.
+
+Som: o clique em Abrir jogo ativa o audio antes de carregar a introducao.
+Se o navegador suspender o audio depois, use Ativar som no canto superior.
+Verifique tambem se a aba do navegador esta silenciada e o volume do Windows.
+
+Validacao: introducao, sinal de audio, menu e primeira cena no Chromium.
+As demais fases nao foram validadas por completo. Compatibilidade experimental.
+O jogo e interpretado pelo ScummVM; nao foi reescrito em HTML puro.
+
+Runtime e creditos: https://github.com/chkuendig/scummvm-demo
+Versao fixada: c86992b3533095ce95ed6d9157bcf81faeabf2c6 (branch gh-pages).
+Codigo ScummVM: https://github.com/scummvm/scummvm
+ScummVM e software livre; suas licencas e creditos estao no repositorio acima.
+Este pacote contem somente o lancador. Os arquivos do jogo sao seus arquivos locais.
+
+Esc: voltar ao menu principal e um comportamento previsto no script original.
+A fala ao pegar o livro na biblioteca ainda esta em investigacao.

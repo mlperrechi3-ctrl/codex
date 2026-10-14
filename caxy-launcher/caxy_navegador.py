@@ -14,6 +14,7 @@ import webbrowser
 REV = 'c86992b3533095ce95ed6d9157bcf81faeabf2c6'
 BASE = f'https://raw.githubusercontent.com/chkuendig/scummvm-demo/{REV}/'
 PREFIX = 'data/games/Caxy'
+AUDIO_GATE = '<div id="caxyGate" style="position:fixed;inset:0;z-index:100;display:grid;place-content:center;text-align:center;background:#100c21;color:#f9f4eb;font-family:system-ui;padding:25px"><h1 style="color:#ffd455">Caxy Gambá</h1><p>Clique para começar a introdução com som.</p><button id="caxyBegin" style="padding:15px 28px;border:0;border-radius:10px;background:#ffd455;font:inherit;cursor:pointer">Começar com som</button></div><button onclick="enableCaxySound()" style="position:fixed;right:12px;top:12px;z-index:99;padding:8px 12px;border-radius:8px;cursor:pointer">Ativar som</button><script>const caxyAudioContexts=new Set();\nfunction prepareCaxySound(){\n const Native=window.AudioContext||window.webkitAudioContext;\n if(!Native)return;\n const prepared=new Native();\n caxyAudioContexts.add(prepared);\n prepared.resume().catch(console.warn);\n let available=true;\n const Wrapped=new Proxy(Native,{construct(Target,args){\n  const context=available?(available=false,prepared):Reflect.construct(Target,args);\n  caxyAudioContexts.add(context);return context;\n }});\n window.AudioContext=Wrapped;\n if(window.webkitAudioContext)window.webkitAudioContext=Wrapped;\n}\nfunction enableCaxySound(){\n for(const context of caxyAudioContexts)if(context.state!==\'closed\')context.resume().catch(console.warn);\n document.getElementById(\'canvas\')?.focus();\n}\ndocument.getElementById(\'caxyBegin\').onclick=()=>{prepareCaxySound();document.getElementById(\'caxyGate\').remove();const script=document.createElement(\'script\');script.src=\'scummvm.js\';document.body.appendChild(script);};</script>'
 
 def main():
     ap = argparse.ArgumentParser(description='Abre Caxy Gamba no navegador usando a pasta extraida do jogo.')
@@ -58,6 +59,7 @@ def main():
     launch = '#--config=/scummvm.ini --path=/data/games/Caxy --extrapath=/data --gfx-mode=surfacesdl director:director'
     html = html.replace('<script async type="text/javascript" src="scummvm.js"></script>',
         f'<script>if(!location.hash)history.replaceState(null,"",{json.dumps(launch)});</script><script async src="scummvm.js"></script>')
+    html = html.replace('<script async src="scummvm.js"></script>', AUDIO_GATE)
     (root / 'index.html').write_text(html)
     (root / 'scummvm.ini').write_text('[scummvm]\npluginspath=/data/plugins\nextrapath=/data\ngfx_mode=surfacesdl\nfullscreen=false\n')
     def game_index(directory, relative=Path()):

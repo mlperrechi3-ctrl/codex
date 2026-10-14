@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caxy Gambá — Monstruário</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:#100c21;color:#f9f4eb}main{max-width:650px;margin:8vh auto;padding:28px}h1{font-size:2.5rem;margin-bottom:8px;color:#ffd455}p{line-height:1.6;color:#d7cfdf}.card{padding:25px;border:1px solid #544369;border-radius:20px;background:#211830}label{display:block;margin-bottom:12px;font-weight:600}input{width:100%;margin-bottom:18px}button{background:#ffd455;color:#21152c;font:inherit;font-weight:700;border:0;border-radius:10px;padding:14px 22px;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{min-height:2em;white-space:pre-wrap}small{display:block;color:#b9b0c3;line-height:1.5;margin-top:20px}#game{display:none;background:black;position:fixed;inset:0}#canvas{width:100%;height:100%;object-fit:contain;background:#000}#toolbar{position:fixed;right:12px;top:12px;z-index:4;opacity:.5}#toolbar:hover{opacity:1}#toolbar button{font-size:.8rem;padding:8px}#download-modal{display:none;position:fixed;inset:0;background:#140e24e8;z-index:6;align-content:center;text-align:center;padding:25px}#download-modal-progress-fill{height:6px;background:#ffd455;max-width:100%}.progress{max-width:400px;background:#453552;margin:18px auto}#download-modal-speed-text{font-size:.8rem;color:#b9b0c3}
+</style>
+</head>
+<body>
+<main id="intro">
+<h1>Caxy Gambá</h1><p>Encontra o Monstruário</p>
+<div class="card">
+<label for="folder">Selecione a pasta extraída do jogo</label>
+<input id="folder" type="file" webkitdirectory directory multiple>
+<p id="status" role="status">Escolha a pasta que contém MONSTRO.EXE. Extraia o RAR antes de começar.</p>
+<button id="play" disabled>Abrir jogo</button>
+<small>Os arquivos do jogo ficam no seu computador. É preciso internet para carregar o player. Use Chrome ou Edge no computador.<br>Versão experimental: introdução, menu e primeira cena testados; demais fases ainda não validadas.</small>
+</div>
+</main>
+<div id="game"><canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas><div id="toolbar"><button id="sound" onclick="enableCaxySound()">Ativar som</button> <button id="full">Tela cheia</button> <button onclick="location.reload()">Reiniciar</button></div></div>
+<div id="download-modal"><div id="download-modal-title"><span>Carregando o player…</span></div><div class="progress"><div id="download-modal-progress-fill"></div></div><div id="download-modal-progress-text"></div><div id="download-modal-speed-text"></div></div>
+<script>
+'use strict';
+const BASE='https://raw.githubusercontent.com/chkuendig/scummvm-demo/c86992b3533095ce95ed6d9157bcf81faeabf2c6/';
+const nativeFetch=window.fetch.bind(window);
+const gameFiles=new Map(),virtual=new Map();
+const status=document.getElementById('status'),button=document.getElementById('play');
+const required=['MONSTRO.EXE','MONSTRO.CXT','MENU.DXR','BASICA81.DXR'];
+let running=false;
+const caxyAudioContexts=new Set();
+function prepareCaxySound(){
+ const Native=window.AudioContext||window.webkitAudioContext;
+ if(!Native)return;
+ const prepared=new Native();
+ caxyAudioContexts.add(prepared);
+ prepared.resume().catch(console.warn);
+ let available=true;
+ const Wrapped=new Proxy(Native,{construct(Target,args){
+  const context=available?(available=false,prepared):Reflect.construct(Target,args);
+  caxyAudioContexts.add(context);return context;
+ }});
+ window.AudioContext=Wrapped;
+ if(window.webkitAudioContext)window.webkitAudioContext=Wrapped;
+}
+function enableCaxySound(){
+ for(const context of caxyAudioContexts)if(context.state!=='closed')context.resume().catch(console.warn);
+ document.getElementById('canvas')?.focus();
+}
+
+function jsonResponse(value){return new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}})}
+function addIndex(map,path,size){
+ const parts=path.split('/');let dir='/data/games/Caxy';
+ for(let i=0;i<parts.length;i++){
+  if(!map.has(dir))map.set(dir,{});
+  map.get(dir)[parts[i]]=i===parts.length-1?size:{};
+  dir+='/'+parts[i];
+ }
+}
+document.getElementById('folder').addEventListener('change',event=>{
+ gameFiles.clear();virtual.clear();const files=[...event.target.files];
+ const executable=files.find(f=>f.name.toUpperCase()==='MONSTRO.EXE');
+ if(!executable){status.textContent='MONSTRO.EXE não foi encontrado. Selecione a pasta extraída do jogo.';button.disabled=true;return}
+ const relative=executable.webkitRelativePath;
+ const prefix=relative.slice(0,relative.lastIndexOf('/')+1);
+ for(const file of files){
+  if(!file.webkitRelativePath.startsWith(prefix))continue;
+  const name=file.webkitRelativePath.slice(prefix.length);
+  if(!name||name.endsWith('index.json')||name.toUpperCase()==='MONSTRO3.EXE'||name.toUpperCase()==='MONSTRO.DIR')continue;
+  gameFiles.set('/data/games/Caxy/'+name,file);
+ }
+ const missing=required.filter(n=>!gameFiles.has('/data/games/Caxy/'+n));
+ if(missing.length){status.textContent='Arquivos ausentes: '+missing.join(', ');button.disabled=true;return}
+ gameFiles.set('/data/games/Caxy/MONSTRO.DIR',gameFiles.get('/data/games/Caxy/MONSTRO.CXT'));
+ const indexes=new Map();
+ for(const [path,file] of gameFiles)addIndex(indexes,path.slice('/data/games/Caxy/'.length),file.size);
+ for(const [path,value] of indexes)virtual.set(path+'/index.json',value);
+ virtual.set('/data/games/index.json',{Caxy:{}});
+ status.textContent='Jogo localizado. Clique em “Abrir jogo”.';button.disabled=false;
+});
+function routePath(input){
+ const value=typeof input==='string'?input:input.url;
+ let path=decodeURIComponent(new URL(value,location.href).pathname).replace(/\/{2,}/g,'/');
+ const data=path.indexOf('/data/');if(data>=0)return path.slice(data);
+ if(path.endsWith('/scummvm.ini')||path.endsWith('/caxy.ini'))return '/scummvm.ini';
+ return path;
+}
+window.fetch=async function(input,options={}){
+ const path=routePath(input);
+ if(virtual.has(path))return jsonResponse(virtual.get(path));
+ if(path==='/scummvm.ini')return new Response('[scummvm]\npluginspath=/data/plugins\nextrapath=/data\ngfx_mode=surfacesdl\nfullscreen=false\n');
+ if(gameFiles.has(path)){
+  const file=gameFiles.get(path),headers=new Headers(options.headers||(input instanceof Request?input.headers:undefined));
+  const match=/^bytes=(\d+)-(\d*)$/.exec(headers.get('range')||'');
+  let start=0,end=file.size-1;
+  if(match){start=Number(match[1]);if(match[2])end=Math.min(Number(match[2]),end)}
+  if(start>end||start>=file.size)return new Response(null,{status:416});
+  const resultHeaders={'Content-Type':'application/octet-stream','Content-Length':String(end-start+1),'Accept-Ranges':'bytes'};
+  if(match)resultHeaders['Content-Range']=`bytes ${start}-${end}/${file.size}`;
+  return new Response(file.slice(start,end+1),{status:match?206:200,headers:resultHeaders});
+ }
+ if(path.startsWith('/data/games/'))return new Response('Arquivo não encontrado',{status:404});
+ if(path.startsWith('/data/')){
+  const response=await nativeFetch(BASE+path.slice(1),{...options,credentials:'omit'});
+  const match=/^bytes=(\d+)-(\d*)$/.exec(new Headers(options.headers).get('range')||'');
+  if(match&&response.status===200){
+   const blob=await response.blob(),start=Number(match[1]),end=Math.min(match[2]?Number(match[2]):blob.size-1,blob.size-1);
+   if(start>end||start>=blob.size)return new Response(null,{status:416});
+   return new Response(blob.slice(start,end+1),{status:206,headers:{'Content-Type':'application/octet-stream','Content-Length':String(end-start+1),'Content-Range':`bytes ${start}-${end}/${blob.size}`}});
+  }
+  return response;
+ }
+ return nativeFetch(input,options);
+};
+function fail(error){
+ document.getElementById('download-modal').style.display='none';
+ document.getElementById('game').style.display='none';document.getElementById('intro').style.display='block';
+ status.textContent='Não foi possível abrir o jogo: '+(error.message||error)+'. Recarregue a página para tentar novamente.';
+ console.error(error);
+}
+button.addEventListener('click',async()=>{
+ if(running)return;prepareCaxySound();running=true;button.disabled=true;status.textContent='Carregando o player…';
+ try{
+  const metadata=await nativeFetch(BASE+'data/index.json');if(!metadata.ok)throw Error('Falha ao baixar o índice do player');
+  const data=await metadata.json();
+  const selected={plugins:{},games:{}};
+  for(const name of ['fonts.dat','encoding.dat','classicmacfonts.dat','translations.dat','scummmodern.zip','scummclassic.zip'])selected[name]=data[name];
+  virtual.set('/data/index.json',selected);virtual.set('/data/plugins/index.json',{'libdirector.so':15198033});
+  history.replaceState(null,'','#--config=/scummvm.ini --path=/data/games/Caxy --extrapath=/data --gfx-mode=surfacesdl director:director');
+  window.Module={canvas:document.getElementById('canvas'),preRun:[],postRun:[],
+   locateFile:path=>BASE+(path.startsWith('/data/')?path.slice(1):path),
+   print:text=>console.log(text),printErr:text=>console.warn(text),
+   setStatus:text=>{document.getElementById('download-modal-title').firstElementChild.textContent=text||'Carregando…';},
+   onAbort:error=>fail(Error(String(error))),
+   onRuntimeInitialized:()=>{document.getElementById('download-modal').style.display='none';document.getElementById('canvas').focus();}
+  };
+  const response=await nativeFetch(BASE+'scummvm.js');if(!response.ok)throw Error('Falha ao baixar o player');
+  const code=await response.text();
+  document.getElementById('intro').style.display='none';document.getElementById('game').style.display='block';
+  const script=document.createElement('script');script.src=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));script.onerror=()=>fail(Error('Falha ao inicializar o player'));document.body.appendChild(script);
+ }catch(error){fail(error)}
+});
+document.getElementById('full').onclick=()=>document.getElementById('game').requestFullscreen().catch(console.warn);
+</script>
+</body>
+</html>
