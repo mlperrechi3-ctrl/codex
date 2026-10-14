@@ -16,7 +16,8 @@ Som: o clique em Abrir jogo ativa o audio antes de carregar a introducao.
 Se o navegador suspender o audio depois, use Ativar som no canto superior.
 Verifique tambem se a aba do navegador esta silenciada e o volume do Windows.
 
-Validacao: introducao, sinal de audio, menu e primeira cena no Chromium.
+HTML validado: abertura direta, pasta local, introducao com audio e menu.
+O runtime tambem foi testado na primeira cena pelo lancador Python.
 As demais fases nao foram validadas por completo. Compatibilidade experimental.
 O jogo e interpretado pelo ScummVM; nao foi reescrito em HTML puro.
 
@@ -27,4 +28,7 @@ ScummVM e software livre; suas licencas e creditos estao no repositorio acima.
 Este pacote contem somente o lancador. Os arquivos do jogo sao seus arquivos locais.
 
 Esc: voltar ao menu principal e um comportamento previsto no script original.
-A fala ao pegar o livro na biblioteca ainda esta em investigacao.
+A gravacao PEDESTAL.AIF, embutida em BASICA81.DXR, foi acionada com audio
+num teste isolado da sequencia do livro. O percurso completo de coleta do
+livro pelo mouse ainda nao foi confirmado. Se a fala faltar, clique em
+Salvar diagnostico e compartilhe caxy-diagnostico.json para investigacao.

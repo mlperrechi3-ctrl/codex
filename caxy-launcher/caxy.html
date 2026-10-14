@@ -19,7 +19,7 @@
 <small>Os arquivos do jogo ficam no seu computador. É preciso internet para carregar o player. Use Chrome ou Edge no computador.<br>Versão experimental: introdução, menu e primeira cena testados; demais fases ainda não validadas.</small>
 </div>
 </main>
-<div id="game"><canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas><div id="toolbar"><button id="sound" onclick="enableCaxySound()">Ativar som</button> <button id="full">Tela cheia</button> <button onclick="location.reload()">Reiniciar</button></div></div>
+<div id="game"><canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas><div id="toolbar"><button id="sound" onclick="enableCaxySound()">Ativar som</button> <button id="full">Tela cheia</button> <button onclick="saveCaxyDiagnostics()">Salvar diagnóstico</button> <button onclick="location.reload()">Reiniciar</button></div></div>
 <div id="download-modal"><div id="download-modal-title"><span>Carregando o player…</span></div><div class="progress"><div id="download-modal-progress-fill"></div></div><div id="download-modal-progress-text"></div><div id="download-modal-speed-text"></div></div>
 <script>
 'use strict';
@@ -28,6 +28,15 @@ const nativeFetch=window.fetch.bind(window);
 const gameFiles=new Map(),virtual=new Map();
 const status=document.getElementById('status'),button=document.getElementById('play');
 const required=['MONSTRO.EXE','MONSTRO.CXT','MENU.DXR','BASICA81.DXR'];
+const diagnosticLog=[];
+function rememberCaxy(kind,text){diagnosticLog.push({time:Date.now(),kind,text:String(text).slice(0,1200)});if(diagnosticLog.length>400)diagnosticLog.shift();}
+function saveCaxyDiagnostics(){
+ const report={player:BASE,userAgent:navigator.userAgent,localGameFiles:gameFiles.size,
+  audio:[...caxyAudioContexts].map(c=>({state:c.state,sampleRate:c.sampleRate})),log:diagnosticLog};
+ const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
+ link.href=url;link.download='caxy-diagnostico.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+window.addEventListener('error',e=>rememberCaxy('error',e.message));
 let running=false;
 const caxyAudioContexts=new Set();
 function prepareCaxySound(){
@@ -127,10 +136,10 @@ button.addEventListener('click',async()=>{
   const selected={plugins:{},games:{}};
   for(const name of ['fonts.dat','encoding.dat','classicmacfonts.dat','translations.dat','scummmodern.zip','scummclassic.zip'])selected[name]=data[name];
   virtual.set('/data/index.json',selected);virtual.set('/data/plugins/index.json',{'libdirector.so':15198033});
-  history.replaceState(null,'','#--config=/scummvm.ini --path=/data/games/Caxy --extrapath=/data --gfx-mode=surfacesdl director:director');
+  history.replaceState(null,'','#--config=/scummvm.ini --path=/data/games/Caxy --extrapath=/data --gfx-mode=surfacesdl --debuglevel=1 director:director');
   window.Module={canvas:document.getElementById('canvas'),preRun:[],postRun:[],
    locateFile:path=>BASE+(path.startsWith('/data/')?path.slice(1):path),
-   print:text=>console.log(text),printErr:text=>console.warn(text),
+   print:text=>{rememberCaxy('info',text);console.log(text)},printErr:text=>{rememberCaxy('warning',text);console.warn(text)},
    setStatus:text=>{document.getElementById('download-modal-title').firstElementChild.textContent=text||'Carregando…';},
    onAbort:error=>fail(Error(String(error))),
    onRuntimeInitialized:()=>{document.getElementById('download-modal').style.display='none';document.getElementById('canvas').focus();}
